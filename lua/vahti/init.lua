@@ -109,16 +109,27 @@ local function check_remote_revisions(plugins, on_complete)
 end
 
 ---@param updates string[]
-local function notify_updates(updates)
-  if #updates == 0 then
+---@param failed string[]
+local function notify_result(updates, failed)
+  local messages = {}
+
+  if #updates > 0 then
+    messages[#messages + 1] = string.format(
+      "Plugin updates available (%d): %s. Run :lua vim.pack.update() to review and apply.",
+      #updates,
+      table.concat(updates, ", ")
+    )
+  end
+
+  if #failed > 0 then
+    messages[#messages + 1] = "Could not check: " .. table.concat(failed, ", ")
+  end
+
+  if #messages == 0 then
     return
   end
 
-  notify(string.format(
-    "Plugin updates available (%d): %s. Run :lua vim.pack.update() to review and apply.",
-    #updates,
-    table.concat(updates, ", ")
-  ))
+  notify(table.concat(messages, "\n"), #failed > 0 and vim.log.levels.WARN or vim.log.levels.INFO)
 end
 
 ---@param force? boolean
@@ -150,13 +161,8 @@ function M.check(force)
   check_remote_revisions(plugins, function(updates, failed)
     checking = false
 
-    if #failed > 0 then
-      notify("Could not check updates for: " .. table.concat(failed, ", "), vim.log.levels.WARN)
-      return
-    end
-
     write_last_check()
-    notify_updates(updates)
+    notify_result(updates, failed)
   end)
 
   return true
