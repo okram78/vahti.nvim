@@ -68,13 +68,11 @@ require a network connection.
 
 ## Development
 
-Changes are developed on `development` and merged into `main` through pull
-requests. GitVersion reads semver directives from commit messages:
+Run the tests locally:
 
-```text
-feat: add a new check mode +semver: minor
-fix: handle missing Git +semver: patch
+```sh
+NVIM_APPNAME=vahti-test nvim --headless -u tests/minimal_init.lua -l tests/vahti_spec.lua
 ```
 
-The first `0.1.0` release is created from `main` after the release pull
-request has passed CI. Push a `vX.Y.Z` tag to start the release workflow.
+Merging to `main` creates a version tag and GitHub release automatically.
+Use `+semver: minor` or `+semver: patch` in a commit message when needed.
