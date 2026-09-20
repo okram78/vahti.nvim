@@ -33,8 +33,8 @@ require("vahti").setup({
 ```
 
 When the check runs, vahti starts Neovim's own `vim.pack.update()` mechanism.
-It fetches update information and opens Neovim's review buffer, but does not
-apply plugin updates automatically. Use `:write` in that buffer to apply the
-selected updates, or `:quit` to cancel them.
+It fetches update information, reports available updates, and opens Neovim's
+review buffer. It does not apply plugin updates automatically. Use `:write`
+in that buffer to apply the selected updates, or `:quit` to cancel them.
 
 To check immediately, run `:VahtiCheck`.
