@@ -8,6 +8,7 @@ are available. vahti.nvim never updates plugins automatically.
 
 - Neovim 0.12 or newer
 - Plugins installed with `vim.pack.add()`
+- Git available on `PATH`
 
 ## Setup
 
@@ -32,6 +33,15 @@ require("vahti").setup({
 })
 ```
 
+To check on every startup instead, set `check_interval = 0`:
+
+```lua
+require("vahti").setup({
+  startup_delay = 3000,
+  check_interval = 0,
+})
+```
+
 When updates are found, vahti displays a notification with the plugin names.
 To review and apply updates, run Neovim's own mechanism:
 
@@ -39,11 +49,32 @@ To review and apply updates, run Neovim's own mechanism:
 :lua vim.pack.update()
 ```
 
-If your configuration defines a `:PackUpdate` command, vahti recommends that
-command instead.
-
 This opens Neovim's review buffer. Use `:write` in that buffer to apply the
 selected updates, or `:quit` to cancel them. The background check uses Git to
 inspect remote revisions and does not modify plugin files.
 
 To check immediately, run `:VahtiCheck`.
+
+## Tests
+
+Run the local headless test suite from the repository root:
+
+```sh
+NVIM_APPNAME=vahti-test nvim --headless -u tests/minimal_init.lua -l tests/vahti_spec.lua
+```
+
+The tests mock Git and `vim.pack`, so they do not update installed plugins or
+require a network connection.
+
+## Development
+
+Changes are developed on `development` and merged into `main` through pull
+requests. GitVersion reads semver directives from commit messages:
+
+```text
+feat: add a new check mode +semver: minor
+fix: handle missing Git +semver: patch
+```
+
+The first `0.1.0` release is created from `main` after the release pull
+request has passed CI. Push a `vX.Y.Z` tag to start the release workflow.
