@@ -2,7 +2,7 @@
 
 vahti.nvim watches plugins managed by Neovim 0.12's built-in `vim.pack`.
 It checks for updates after startup and tells you to use Neovim's own
-`:packupdate` command. vahti.nvim never updates plugins automatically.
+`vim.pack.update()` function. vahti.nvim never updates plugins automatically.
 
 ## Requirements
 
@@ -32,5 +32,9 @@ require("vahti").setup({
 })
 ```
 
-To check immediately, run `:VahtiCheck`. When updates are found, run
-`:packupdate` to review and apply them.
+When the check runs, vahti starts Neovim's own `vim.pack.update()` mechanism.
+It fetches update information and opens Neovim's review buffer, but does not
+apply plugin updates automatically. Use `:write` in that buffer to apply the
+selected updates, or `:quit` to cancel them.
+
+To check immediately, run `:VahtiCheck`.

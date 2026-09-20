@@ -11,9 +11,6 @@ local defaults = {
 ---@class VahtiState
 ---@field last_check number
 
----@class VahtiPackData: vim.pack.PlugData
----@field rev_to? string
-
 ---@type VahtiConfig
 local config = vim.deepcopy(defaults)
 local state_file = vim.fn.stdpath("state") .. "/vahti.json"
@@ -65,25 +62,6 @@ local function check_version()
   return false
 end
 
----@return VahtiPackData[]?
-local function find_updates()
-  local ok, plugins = pcall(vim.pack.get, nil, { info = true, offline = false })
-  if not ok then
-    notify("Could not check plugin updates: " .. tostring(plugins), vim.log.levels.WARN)
-    return nil
-  end
-
-  ---@cast plugins VahtiPackData[]
-  local updates = {}
-  for _, plugin in ipairs(plugins) do
-    if plugin.rev_to and plugin.rev_to ~= plugin.rev then
-      updates[#updates + 1] = plugin.spec.name
-    end
-  end
-
-  return updates
-end
-
 ---@param force? boolean
 ---@return boolean
 function M.check(force)
@@ -99,25 +77,13 @@ function M.check(force)
     end
   end
 
-  local updates = find_updates()
-  if not updates then
+  local ok, err = pcall(vim.pack.update, nil, { force = false })
+  if not ok then
+    notify("Could not check plugin updates: " .. tostring(err), vim.log.levels.WARN)
     return false
   end
 
   write_last_check()
-
-  if #updates == 0 then
-    return true
-  end
-
-  notify(
-    string.format(
-      "%d plugin update%s available: %s. Run :packupdate to review and apply.",
-      #updates,
-      #updates == 1 and " is" or "s are",
-      table.concat(updates, ", ")
-    )
-  )
   return true
 end
 
