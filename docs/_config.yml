@@ -1,0 +1,8 @@
+title: vahti.nvim
+description: Background update notifications for Neovim's built-in vim.pack
+url: https://okram78.github.io
+baseurl: /vahti.nvim
+theme: minima
+
+plugins:
+  - jekyll-feed
