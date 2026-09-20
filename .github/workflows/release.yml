@@ -2,6 +2,8 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*.*.*"
   workflow_dispatch:
@@ -32,6 +34,21 @@ jobs:
       - name: Calculate version
         id: gitversion
         uses: gittools/actions/gitversion/execute@v4.7.0
+
+      - name: Create version tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          VERSION: ${{ steps.gitversion.outputs.majorMinorPatch }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists"
+          else
+            git tag --annotate "v$VERSION" --message "Release v$VERSION"
+            git push origin "v$VERSION"
+          fi
 
       - name: Install GitReleaseManager
         uses: gittools/actions/gitreleasemanager/setup@v4.7.0
