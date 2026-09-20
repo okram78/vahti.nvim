@@ -48,6 +48,7 @@ require("vahti").setup({
 ```
 
 When updates are found, vahti displays a notification with the plugin names.
+Manual `:VahtiCheck` also reports when no plugin updates are available.
 To review and apply updates, run Neovim's own mechanism:
 
 ```vim

@@ -116,7 +116,8 @@ end
 
 ---@param updates string[]
 ---@param failed string[]
-local function notify_result(updates, failed)
+---@param notify_empty boolean
+local function notify_result(updates, failed, notify_empty)
   local messages = {}
 
   if #updates > 0 then
@@ -132,6 +133,9 @@ local function notify_result(updates, failed)
   end
 
   if #messages == 0 then
+    if notify_empty then
+      notify("No plugin updates available.")
+    end
     return
   end
 
@@ -168,7 +172,7 @@ function M.check(force)
     checking = false
 
     write_last_check()
-    notify_result(updates, failed)
+    notify_result(updates, failed, force == true)
   end)
 
   return true

@@ -75,9 +75,10 @@ run_test("notifies about remote updates", function()
   assert_contains(notifications[1].message, "Run :lua vim.pack.update()")
 end)
 
-run_test("does not notify when revisions match", function()
+run_test("reports when no updates are available", function()
   local notifications = check_with("abcdef1234567890", "abcdef1234567890")
-  assert(#notifications == 0)
+  assert(#notifications == 1)
+  assert_contains(notifications[1].message, "No plugin updates available.")
 end)
 
 run_test("warns when Git check fails", function()
