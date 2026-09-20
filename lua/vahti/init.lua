@@ -63,6 +63,13 @@ local function check_version()
   return false
 end
 
+local function update_command()
+  if vim.fn.exists(":PackUpdate") == 2 then
+    return ":PackUpdate"
+  end
+  return ":lua vim.pack.update()"
+end
+
 ---@param plugin vim.pack.PlugData
 ---@return string
 local function update_target(plugin)
@@ -115,9 +122,10 @@ local function notify_updates(updates)
   end
 
   notify(string.format(
-    "Plugin updates available (%d): %s. Run :lua vim.pack.update() to review and apply.",
+    "Plugin updates available (%d): %s. Run %s to review and apply.",
     #updates,
-    table.concat(updates, ", ")
+    table.concat(updates, ", "),
+    update_command()
   ))
 end
 

@@ -39,6 +39,9 @@ To review and apply updates, run Neovim's own mechanism:
 :lua vim.pack.update()
 ```
 
+If your configuration defines a `:PackUpdate` command, vahti recommends that
+command instead.
+
 This opens Neovim's review buffer. Use `:write` in that buffer to apply the
 selected updates, or `:quit` to cancel them. The background check uses Git to
 inspect remote revisions and does not modify plugin files.
