@@ -3,9 +3,11 @@ local M = {}
 ---@class VahtiConfig
 ---@field startup_delay number Milliseconds to wait after VimEnter.
 ---@field check_interval number Seconds between automatic checks.
+---@field git_timeout number Milliseconds before a Git check is terminated.
 local defaults = {
   startup_delay = 3000,
   check_interval = 24 * 60 * 60,
+  git_timeout = 10000,
 }
 
 ---@class VahtiState
@@ -66,6 +68,7 @@ end
 ---@param plugin vim.pack.PlugData
 ---@return string
 local function update_target(plugin)
+  -- vim.pack's version is passed to Git as a literal ref, such as a tag.
   if type(plugin.spec.version) == "string" then
     return tostring(plugin.spec.version)
   end
@@ -94,7 +97,10 @@ local function check_remote_revisions(plugins, on_complete)
   end
 
   for _, plugin in ipairs(plugins) do
-    vim.system({ "git", "ls-remote", plugin.spec.src, update_target(plugin) }, { text = true }, function(result)
+    vim.system({ "git", "ls-remote", plugin.spec.src, update_target(plugin) }, {
+      text = true,
+      timeout = config.git_timeout,
+    }, function(result)
       if result.code ~= 0 then
         failed[#failed + 1] = plugin.spec.name
       else
@@ -109,20 +115,31 @@ local function check_remote_revisions(plugins, on_complete)
 end
 
 ---@param updates string[]
-local function notify_updates(updates)
-  if #updates == 0 then
+---@param failed string[]
+local function notify_result(updates, failed)
+  local messages = {}
+
+  if #updates > 0 then
+    messages[#messages + 1] = string.format(
+      "Plugin updates available (%d): %s. Run :lua vim.pack.update() to review and apply.",
+      #updates,
+      table.concat(updates, ", ")
+    )
+  end
+
+  if #failed > 0 then
+    messages[#messages + 1] = "Could not check: " .. table.concat(failed, ", ")
+  end
+
+  if #messages == 0 then
     return
   end
 
-  notify(string.format(
-    "Plugin updates available (%d): %s. Run :lua vim.pack.update() to review and apply.",
-    #updates,
-    table.concat(updates, ", ")
-  ))
+  notify(table.concat(messages, "\n"), #failed > 0 and vim.log.levels.WARN or vim.log.levels.INFO)
 end
 
 ---@param force? boolean
----@return boolean
+---@return boolean started Whether an asynchronous check was started.
 function M.check(force)
   if checking then
     return false
@@ -150,19 +167,14 @@ function M.check(force)
   check_remote_revisions(plugins, function(updates, failed)
     checking = false
 
-    if #failed > 0 then
-      notify("Could not check updates for: " .. table.concat(failed, ", "), vim.log.levels.WARN)
-      return
-    end
-
     write_last_check()
-    notify_updates(updates)
+    notify_result(updates, failed)
   end)
 
   return true
 end
 
----@param opts? { startup_delay?: number, check_interval?: number }
+---@param opts? { startup_delay?: number, check_interval?: number, git_timeout?: number }
 function M.setup(opts)
   config = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
 
@@ -170,6 +182,8 @@ function M.setup(opts)
     "vahti: startup_delay must be a non-negative number")
   assert(type(config.check_interval) == "number" and config.check_interval >= 0,
     "vahti: check_interval must be a non-negative number")
+  assert(type(config.git_timeout) == "number" and config.git_timeout > 0,
+    "vahti: git_timeout must be a positive number")
 
   return M
 end

@@ -43,7 +43,8 @@ local function check_with(remote_revision, current_revision, exit_code)
       },
     }
   end)
-  replace_field(vim, "system", function(_, _, callback)
+  replace_field(vim, "system", function(_, opts, callback)
+    assert(opts.timeout == 10000)
     vim.schedule(function()
       callback({
         code = exit_code or 0,
@@ -82,7 +83,48 @@ end)
 run_test("warns when Git check fails", function()
   local notifications = check_with("abcdef1234567890", "0123456789abcdef", 1)
   assert(#notifications == 1)
-  assert_contains(notifications[1].message, "Could not check updates for")
+  assert_contains(notifications[1].message, "Could not check:")
+end)
+
+run_test("reports successful and failed checks together", function()
+  local notifications = {}
+  local finished = 0
+
+  replace_field(vim, "notify", function(message, level)
+    notifications[#notifications + 1] = { message = message, level = level }
+  end)
+  replace_field(vim.pack, "get", function()
+    return {
+      {
+        rev = "0123456789abcdef",
+        spec = { name = "updated-plugin", src = "https://example.invalid/updated-plugin" },
+      },
+      {
+        rev = "0123456789abcdef",
+        spec = { name = "unreachable-plugin", src = "https://example.invalid/unreachable-plugin" },
+      },
+    }
+  end)
+  replace_field(vim, "system", function(command, opts, callback)
+    assert(opts.timeout == 10000)
+    vim.schedule(function()
+      local is_failure = command[3]:find("unreachable-plugin", 1, true) ~= nil
+      callback({
+        code = is_failure and 1 or 0,
+        stdout = "abcdef1234567890\tHEAD\n",
+      })
+      finished = finished + 1
+    end)
+  end)
+
+  assert(vahti.check(true))
+  vim.wait(1000, function()
+    return finished == 2
+  end, 10)
+
+  assert(#notifications == 1)
+  assert_contains(notifications[1].message, "Plugin updates available (1): updated-plugin")
+  assert_contains(notifications[1].message, "Could not check: unreachable-plugin")
 end)
 
 replace_field(vim.pack, "get", original_get)

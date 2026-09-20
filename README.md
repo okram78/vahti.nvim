@@ -10,6 +10,9 @@ are available. vahti.nvim never updates plugins automatically.
 - Plugins installed with `vim.pack.add()`
 - Git available on `PATH`
 
+If a plugin spec has a `version`, vahti treats it as a literal Git ref (for
+example, a tag such as `v1.2.3`), not as a semver constraint.
+
 ## Setup
 
 Add vahti.nvim with `vim.pack.add()` and configure it in `init.lua`:
@@ -20,12 +23,14 @@ vim.pack.add({ "https://github.com/okram78/vahti.nvim" })
 require("vahti").setup({
   startup_delay = 3000,
   check_interval = 24 * 60 * 60,
+  git_timeout = 10000,
 })
 ```
 
 By default, vahti waits three seconds after `VimEnter` and checks at most once
-per day. The last successful check is stored in Neovim's state directory. A
-weekly check can be configured like this:
+per day. Each Git check is terminated after 10 seconds by default. The last
+successful check is stored in Neovim's state directory. A weekly check can be
+configured like this:
 
 ```lua
 require("vahti").setup({
