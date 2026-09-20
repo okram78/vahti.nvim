@@ -66,6 +66,7 @@ end
 ---@param plugin vim.pack.PlugData
 ---@return string
 local function update_target(plugin)
+  -- vim.pack's version is passed to Git as a literal ref, such as a tag.
   if type(plugin.spec.version) == "string" then
     return tostring(plugin.spec.version)
   end

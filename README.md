@@ -10,6 +10,9 @@ are available. vahti.nvim never updates plugins automatically.
 - Plugins installed with `vim.pack.add()`
 - Git available on `PATH`
 
+If a plugin spec has a `version`, vahti treats it as a literal Git ref (for
+example, a tag such as `v1.2.3`), not as a semver constraint.
+
 ## Setup
 
 Add vahti.nvim with `vim.pack.add()` and configure it in `init.lua`:
