@@ -134,7 +134,7 @@ local function notify_result(updates, failed)
 end
 
 ---@param force? boolean
----@return boolean
+---@return boolean started Whether an asynchronous check was started.
 function M.check(force)
   if checking then
     return false
