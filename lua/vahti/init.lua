@@ -3,9 +3,11 @@ local M = {}
 ---@class VahtiConfig
 ---@field startup_delay number Milliseconds to wait after VimEnter.
 ---@field check_interval number Seconds between automatic checks.
+---@field git_timeout number Milliseconds before a Git check is terminated.
 local defaults = {
   startup_delay = 3000,
   check_interval = 24 * 60 * 60,
+  git_timeout = 10000,
 }
 
 ---@class VahtiState
@@ -95,7 +97,10 @@ local function check_remote_revisions(plugins, on_complete)
   end
 
   for _, plugin in ipairs(plugins) do
-    vim.system({ "git", "ls-remote", plugin.spec.src, update_target(plugin) }, { text = true }, function(result)
+    vim.system({ "git", "ls-remote", plugin.spec.src, update_target(plugin) }, {
+      text = true,
+      timeout = config.git_timeout,
+    }, function(result)
       if result.code ~= 0 then
         failed[#failed + 1] = plugin.spec.name
       else
@@ -169,7 +174,7 @@ function M.check(force)
   return true
 end
 
----@param opts? { startup_delay?: number, check_interval?: number }
+---@param opts? { startup_delay?: number, check_interval?: number, git_timeout?: number }
 function M.setup(opts)
   config = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
 
@@ -177,6 +182,8 @@ function M.setup(opts)
     "vahti: startup_delay must be a non-negative number")
   assert(type(config.check_interval) == "number" and config.check_interval >= 0,
     "vahti: check_interval must be a non-negative number")
+  assert(type(config.git_timeout) == "number" and config.git_timeout > 0,
+    "vahti: git_timeout must be a positive number")
 
   return M
 end

@@ -43,7 +43,8 @@ local function check_with(remote_revision, current_revision, exit_code)
       },
     }
   end)
-  replace_field(vim, "system", function(_, _, callback)
+  replace_field(vim, "system", function(_, opts, callback)
+    assert(opts.timeout == 10000)
     vim.schedule(function()
       callback({
         code = exit_code or 0,
@@ -104,7 +105,8 @@ run_test("reports successful and failed checks together", function()
       },
     }
   end)
-  replace_field(vim, "system", function(command, _, callback)
+  replace_field(vim, "system", function(command, opts, callback)
+    assert(opts.timeout == 10000)
     vim.schedule(function()
       local is_failure = command[3]:find("unreachable-plugin", 1, true) ~= nil
       callback({
