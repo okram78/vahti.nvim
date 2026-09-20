@@ -87,7 +87,9 @@ local function check_remote_revisions(plugins, on_complete)
   local function complete_one()
     remaining = remaining - 1
     if remaining == 0 then
-      on_complete(updates, failed)
+      vim.schedule(function()
+        on_complete(updates, failed)
+      end)
     end
   end
 
