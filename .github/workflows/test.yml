@@ -1,0 +1,72 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - development
+      - main
+  pull_request:
+    branches:
+      - development
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Neovim ${{ matrix.neovim }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        neovim:
+          - v0.12.5
+          - nightly
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Neovim
+        env:
+          NEOVIM_VERSION: ${{ matrix.neovim }}
+        run: |
+          set -euo pipefail
+          if [ "$NEOVIM_VERSION" = "nightly" ]; then
+            asset_url="https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz"
+          else
+            asset_url="https://github.com/neovim/neovim/releases/download/${NEOVIM_VERSION}/nvim-linux-x86_64.tar.gz"
+          fi
+          curl --fail --location "$asset_url" --output "$RUNNER_TEMP/neovim.tar.gz"
+          mkdir --parents "$RUNNER_TEMP/neovim"
+          tar --extract --gzip --file "$RUNNER_TEMP/neovim.tar.gz" \
+            --strip-components=1 --directory "$RUNNER_TEMP/neovim"
+          echo "$RUNNER_TEMP/neovim/bin" >> "$GITHUB_PATH"
+
+      - name: Run tests
+        env:
+          NVIM_APPNAME: vahti-test
+        run: nvim --headless -u tests/minimal_init.lua -l tests/vahti_spec.lua
+
+  version:
+    name: Calculate version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v4.7.0
+        with:
+          versionSpec: 6.8.x
+
+      - name: Calculate version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v4.7.0
+
+      - name: Display version
+        run: echo "GitVersion calculated ${{ steps.gitversion.outputs.fullSemVer }}"

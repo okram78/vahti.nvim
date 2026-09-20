@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      milestone:
+        description: GitHub milestone to publish
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v4.7.0
+        with:
+          versionSpec: 6.8.x
+
+      - name: Calculate version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v4.7.0
+
+      - name: Install GitReleaseManager
+        uses: gittools/actions/gitreleasemanager/setup@v4.7.0
+        with:
+          versionSpec: 0.20.x
+
+      - name: Create release
+        uses: gittools/actions/gitreleasemanager/create@v4.7.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: okram78/vahti.nvim
+          milestone: ${{ inputs.milestone || steps.gitversion.outputs.majorMinorPatch }}
+          name: v${{ steps.gitversion.outputs.majorMinorPatch }}
+
+      - name: Publish release
+        uses: gittools/actions/gitreleasemanager/publish@v4.7.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: okram78/vahti.nvim
+          milestone: ${{ inputs.milestone || steps.gitversion.outputs.majorMinorPatch }}
