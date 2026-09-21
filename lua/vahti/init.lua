@@ -1,4 +1,5 @@
 local M = {}
+local git = require("vahti.git")
 
 ---@class VahtiConfig
 ---@field startup_delay number Milliseconds to wait after VimEnter.
@@ -65,55 +66,6 @@ local function check_version()
   return false
 end
 
----@param plugin vim.pack.PlugData
----@return string
-local function update_target(plugin)
-  -- vim.pack's version is passed to Git as a literal ref, such as a tag.
-  if type(plugin.spec.version) == "string" then
-    return tostring(plugin.spec.version)
-  end
-  return "HEAD"
-end
-
----@param plugins vim.pack.PlugData[]
----@param on_complete fun(updates: string[], failed: string[])
-local function check_remote_revisions(plugins, on_complete)
-  if #plugins == 0 then
-    on_complete({}, {})
-    return
-  end
-
-  local remaining = #plugins
-  local updates = {}
-  local failed = {}
-
-  local function complete_one()
-    remaining = remaining - 1
-    if remaining == 0 then
-      vim.schedule(function()
-        on_complete(updates, failed)
-      end)
-    end
-  end
-
-  for _, plugin in ipairs(plugins) do
-    vim.system({ "git", "ls-remote", plugin.spec.src, update_target(plugin) }, {
-      text = true,
-      timeout = config.git_timeout,
-    }, function(result)
-      if result.code ~= 0 then
-        failed[#failed + 1] = plugin.spec.name
-      else
-        local remote_revision = result.stdout:match("^(%x+)%s")
-        if remote_revision and remote_revision ~= plugin.rev then
-          updates[#updates + 1] = plugin.spec.name
-        end
-      end
-      complete_one()
-    end)
-  end
-end
-
 ---@param updates string[]
 ---@param failed string[]
 ---@param notify_empty boolean
@@ -168,7 +120,7 @@ function M.check(force)
   end
 
   checking = true
-  check_remote_revisions(plugins, function(updates, failed)
+  git.check_revisions(plugins, config.git_timeout, function(updates, failed)
     checking = false
 
     write_last_check()
