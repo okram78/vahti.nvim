@@ -25,7 +25,7 @@ local function run_test(name, fn)
   end
 end
 
-local function check_with(remote_revision, current_revision, exit_code)
+local function check_with(remote_revision, current_revision, exit_code, version)
   local notifications = {}
   local finished = false
 
@@ -39,6 +39,7 @@ local function check_with(remote_revision, current_revision, exit_code)
         spec = {
           name = "example-plugin",
           src = "https://example.invalid/example-plugin",
+          version = version,
         },
       },
     }
@@ -77,6 +78,55 @@ end)
 
 run_test("reports when no updates are available", function()
   local notifications = check_with("abcdef1234567890", "abcdef1234567890")
+  assert(#notifications == 1)
+  assert_contains(notifications[1].message, "No plugin updates available.")
+end)
+
+run_test("uses the highest matching remote tag for a version range", function()
+  local notifications = {}
+  local finished = false
+
+  replace_field(vim, "notify", function(message, level)
+    notifications[#notifications + 1] = { message = message, level = level }
+  end)
+  replace_field(vim.pack, "get", function()
+    return {
+      {
+        rev = "78336bc89ee5365633bcf754d93df01678b5c08f",
+        spec = {
+          name = "example-plugin",
+          src = "https://example.invalid/example-plugin",
+          version = vim.version.range("1"),
+        },
+      },
+    }
+  end)
+  replace_field(vim, "system", function(command, opts, callback)
+    assert(opts.timeout == 10000)
+    assert(command[1] == "git")
+    assert(command[2] == "ls-remote")
+    assert(command[3] == "--tags")
+    vim.schedule(function()
+      callback({
+        code = 0,
+        stdout = table.concat({
+          "efcf2d949592d4a075c038355c8e6653d2dab4a3\trefs/tags/v1.10.1",
+          "451168851e8e2466bc97ee3e026c3dcb9141ce07\trefs/tags/v1.10.1^{}",
+          "9b189bb2a0e03412e0e901dfbd09904f86cd593c\trefs/tags/v1.10.2",
+          "78336bc89ee5365633bcf754d93df01678b5c08f\trefs/tags/v1.10.2^{}",
+          "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\trefs/tags/v2.0.0",
+          "", -- Keep the command output newline-terminated.
+        }, "\n"),
+      })
+      finished = true
+    end)
+  end)
+
+  assert(vahti.check(true))
+  vim.wait(1000, function()
+    return finished
+  end, 10)
+
   assert(#notifications == 1)
   assert_contains(notifications[1].message, "No plugin updates available.")
 end)
