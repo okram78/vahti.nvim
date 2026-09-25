@@ -1,8 +1,11 @@
 # vahti.nvim
 
 vahti.nvim watches plugins managed by Neovim 0.12's built-in `vim.pack`.
-It checks for updates in the background and displays a notification when they
-are available. vahti.nvim never updates plugins automatically.
+It automatically checks for updates in the background and displays a
+notification when they are available. You can also check manually with
+`:VahtiCheck`. vahti.nvim never updates plugins automatically.
+
+![vahti.nvim reporting that no plugin updates are available](docs/assets/vahti-check.gif)
 
 Read the [full documentation](https://okram78.github.io/vahti.nvim/).
 
