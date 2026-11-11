@@ -5,10 +5,23 @@ local git = require("vahti.git")
 ---@field startup_delay number Milliseconds to wait after VimEnter.
 ---@field check_interval number Seconds between automatic checks.
 ---@field git_timeout number Milliseconds before a Git check is terminated.
+---@field update_keymap string|false Key to open available updates in Telescope.
+---@field telescope { max_width: number, max_height: number, select_all_by_default: boolean }
+---@field messages { updates_with_telescope: string, updates_without_telescope: string }
 local defaults = {
   startup_delay = 3000,
   check_interval = 24 * 60 * 60,
   git_timeout = 10000,
+  update_keymap = "<leader>pu",
+  telescope = {
+    max_width = 150,
+    max_height = 40,
+    select_all_by_default = false,
+  },
+  messages = {
+    updates_with_telescope = "Plugin updates available ({count}): {plugins}. {review_hint}.",
+    updates_without_telescope = "Plugin updates available ({count}): {plugins}. Use :lua vim.pack.update() to review and apply.",
+  },
 }
 
 ---@class VahtiState
@@ -18,6 +31,49 @@ local defaults = {
 local config = vim.deepcopy(defaults)
 local state_file = vim.fn.stdpath("state") .. "/vahti.json"
 local checking = false
+local available_updates
+local mapped_update_key
+
+---@param updates table[]
+---@return string[]
+local function update_names(updates)
+  local names = {}
+  for _, update in ipairs(updates) do
+    names[#names + 1] = type(update) == "table" and update.name or update
+  end
+  return names
+end
+
+local function has_telescope()
+  return pcall(require, "telescope.pickers")
+end
+
+---@param updates table[]
+---@return string
+local function update_message(updates)
+  local telescope_available = has_telescope()
+  local template
+  if telescope_available then
+    template = config.messages.updates_with_telescope
+  else
+    template = config.messages.updates_without_telescope
+  end
+
+  local keymap = config.update_keymap or ":VahtiUpdate"
+  local review_hint = config.update_keymap
+      and ("Press " .. config.update_keymap .. " or run :VahtiUpdate to inspect in Telescope")
+    or "Run :VahtiUpdate to inspect in Telescope"
+  local replacements = {
+    count = tostring(#updates),
+    plugins = table.concat(update_names(updates), ", "),
+    keymap = keymap,
+    review_hint = review_hint,
+  }
+
+  return (template:gsub("{([%w_]+)}", function(key)
+    return replacements[key] or ("{" .. key .. "}")
+  end))
+end
 
 ---@param message string
 ---@param level? integer
@@ -73,11 +129,7 @@ local function notify_result(updates, failed, notify_empty)
   local messages = {}
 
   if #updates > 0 then
-    messages[#messages + 1] = string.format(
-      "Plugin updates available (%d): %s. Run :lua vim.pack.update() to review and apply.",
-      #updates,
-      table.concat(updates, ", ")
-    )
+    messages[#messages + 1] = update_message(updates)
   end
 
   if #failed > 0 then
@@ -95,8 +147,9 @@ local function notify_result(updates, failed, notify_empty)
 end
 
 ---@param force? boolean
+---@param on_complete? fun(updates: table[], failed: string[])
 ---@return boolean started Whether an asynchronous check was started.
-function M.check(force)
+function M.check(force, on_complete)
   if checking then
     return false
   end
@@ -122,15 +175,53 @@ function M.check(force)
   checking = true
   git.check_revisions(plugins, config.git_timeout, function(updates, failed)
     checking = false
+    available_updates = updates
 
     write_last_check()
-    notify_result(updates, failed, force == true)
+    if on_complete then
+      on_complete(updates, failed)
+    else
+      notify_result(updates, failed, force == true)
+    end
   end)
 
   return true
 end
 
----@param opts? { startup_delay?: number, check_interval?: number, git_timeout?: number }
+local function open_telescope(updates)
+  return require("vahti.telescope").open(updates, function()
+    available_updates = nil
+  end, config.telescope)
+end
+
+function M.update()
+  local function open_updates(updates, failed)
+    if #updates == 0 then
+      notify_result(updates, failed, true)
+      return
+    end
+
+    if #failed > 0 then
+      notify_result({}, failed, false)
+    end
+
+    open_telescope(updates)
+  end
+
+  if available_updates and #available_updates > 0 then
+    return open_telescope(available_updates)
+  end
+
+  local started = M.check(true, open_updates)
+
+  if not started and checking then
+    notify("An update check is already in progress.", vim.log.levels.WARN)
+  end
+
+  return started
+end
+
+---@param opts? { startup_delay?: number, check_interval?: number, git_timeout?: number, update_keymap?: string|false, telescope?: { max_width?: number, max_height?: number, select_all_by_default?: boolean }, messages?: { updates_with_telescope?: string, updates_without_telescope?: string } }
 function M.setup(opts)
   config = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
 
@@ -140,6 +231,27 @@ function M.setup(opts)
     "vahti: check_interval must be a non-negative number")
   assert(type(config.git_timeout) == "number" and config.git_timeout > 0,
     "vahti: git_timeout must be a positive number")
+  assert(config.update_keymap == false or (type(config.update_keymap) == "string" and config.update_keymap ~= ""),
+    "vahti: update_keymap must be a non-empty string or false")
+  assert(type(config.telescope.max_width) == "number" and config.telescope.max_width > 0,
+    "vahti: telescope.max_width must be a positive number")
+  assert(type(config.telescope.max_height) == "number" and config.telescope.max_height > 0,
+    "vahti: telescope.max_height must be a positive number")
+  assert(type(config.telescope.select_all_by_default) == "boolean",
+    "vahti: telescope.select_all_by_default must be a boolean")
+  assert(type(config.messages) == "table", "vahti: messages must be a table")
+  assert(type(config.messages.updates_with_telescope) == "string",
+    "vahti: messages.updates_with_telescope must be a string")
+  assert(type(config.messages.updates_without_telescope) == "string",
+    "vahti: messages.updates_without_telescope must be a string")
+
+  if mapped_update_key and mapped_update_key ~= config.update_keymap then
+    pcall(vim.keymap.del, "n", mapped_update_key)
+  end
+  mapped_update_key = config.update_keymap
+  if mapped_update_key then
+    vim.keymap.set("n", mapped_update_key, M.update, { desc = "Review vim.pack plugin updates" })
+  end
 
   return M
 end
