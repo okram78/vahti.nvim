@@ -41,6 +41,12 @@ per day. The last successful check is stored in Neovim's state directory.
 | `startup_delay` | `3000` | Delay after `VimEnter`, in milliseconds. |
 | `check_interval` | `86400` | Minimum time between automatic checks, in seconds. |
 | `git_timeout` | `10000` | Maximum duration of one Git check, in milliseconds. |
+| `update_keymap` | `"<leader>pu"` | Key to open cached updates in Telescope; `false` disables the mapping. |
+| `telescope.max_width` | `150` | Maximum picker width, in columns. |
+| `telescope.max_height` | `40` | Maximum picker height, in rows. |
+| `telescope.select_all_by_default` | `false` | Preselect every available update in the picker. |
+| `messages.updates_with_telescope` | See below | Notification template when Telescope is available. |
+| `messages.updates_without_telescope` | See below | Notification template when Telescope is unavailable. |
 
 For a weekly check:
 
@@ -63,8 +69,43 @@ Run this command to check immediately:
 :VahtiCheck
 ```
 
-When updates are found, vahti lists the affected plugins in a notification.
-Review and apply updates with Neovim's own mechanism:
+Automatic and manual checks only notify when updates are available. To inspect
+the latest results in Telescope, use the default `<leader>pu` mapping or run:
+
+```vim
+:VahtiUpdate
+```
+
+The right-hand preview shows the path, source, current and target revisions, and
+pending commits. Commit details are fetched when a plugin is previewed. Use
+`<Tab>` to select or deselect plugins, then `<CR>` to apply the selection.
+Selected plugins update immediately without Neovim's confirmation buffer.
+Telescope is optional and only needed for the picker. If no check has found
+updates yet, `:VahtiUpdate` starts a check first.
+
+Change or disable the mapping in setup:
+
+```lua
+require("vahti").setup({
+  update_keymap = "<leader>pu", -- or false to disable
+  telescope = {
+    max_width = 150,
+    max_height = 40,
+    select_all_by_default = true,
+  },
+  messages = {
+    updates_with_telescope = "Updates ({count}): {plugins}. {review_hint}.",
+    updates_without_telescope = "Updates ({count}): {plugins}.",
+  },
+})
+```
+
+Both templates accept `{count}` and `{plugins}`. The Telescope template also
+accepts `{keymap}` and `{review_hint}`. When Telescope is unavailable, the
+default notification instead points to `vim.pack.update()` and does not mention
+`:VahtiUpdate` or the Telescope keymap.
+
+Alternatively, review and apply updates with Neovim's own mechanism:
 
 ```vim
 :lua vim.pack.update()

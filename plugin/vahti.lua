@@ -9,6 +9,10 @@ vim.api.nvim_create_user_command("VahtiCheck", function()
   require("vahti").check(true)
 end, { desc = "Check vim.pack plugins for updates" })
 
+vim.api.nvim_create_user_command("VahtiUpdate", function()
+  require("vahti").update()
+end, { desc = "Review and update vim.pack plugins with Telescope" })
+
 vim.api.nvim_create_autocmd("VimEnter", {
   group = group,
   callback = function()

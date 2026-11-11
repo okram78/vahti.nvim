@@ -52,9 +52,35 @@ require("vahti").setup({
 })
 ```
 
-When updates are found, vahti displays a notification with the plugin names.
-Manual `:VahtiCheck` also reports when no plugin updates are available.
-To review and apply updates, run Neovim's own mechanism:
+Automatic and manual checks only notify when updates are available. Telescope
+opens on demand with `:VahtiUpdate` or the default `<leader>pu` mapping. Use
+`<Tab>` to select or deselect plugins and `<CR>` to apply the selection. The
+preview shows the source, current/target revisions, and pending commits. Commit
+details are fetched when a plugin is previewed. Selected updates are applied
+immediately without opening Neovim's confirmation buffer. Telescope is optional
+and needed only for the Telescope picker.
+
+The mapping is configurable or can be disabled:
+
+```lua
+require("vahti").setup({
+  update_keymap = "<leader>pu", -- or false to disable
+  telescope = {
+    max_width = 150,
+    max_height = 40,
+    select_all_by_default = true,
+  },
+  messages = {
+    updates_with_telescope = "Updates ({count}): {plugins}. {review_hint}.",
+    updates_without_telescope = "Updates ({count}): {plugins}.",
+  },
+})
+```
+
+Notification templates support `{count}` and `{plugins}`. The Telescope
+template also supports `{keymap}` and `{review_hint}`.
+
+You can also review and apply updates with Neovim's own mechanism:
 
 ```vim
 :lua vim.pack.update()
